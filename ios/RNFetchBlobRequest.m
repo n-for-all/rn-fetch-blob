@@ -7,6 +7,7 @@
 //
 
 #import "RNFetchBlobRequest.h"
+#import "RNFetchBlobEventManager.h"
 
 #import "RNFetchBlobFS.h"
 #import "RNFetchBlobConst.h"
@@ -201,13 +202,10 @@ typedef NS_ENUM(NSUInteger, ResponseFormat) {
 
         if (self.isServerPush) {
             if (partBuffer) {
-                [self.bridge.eventDispatcher
-                 sendDeviceEventWithName:EVENT_SERVER_PUSH
-                 body:@{
-                        @"taskId": taskId,
-                        @"chunk": [partBuffer base64EncodedStringWithOptions:0],
-                        }
-                 ];
+                [RNFetchBlobEventManager dispatchEvent:EVENT_SERVER_PUSH body:@{
+                                                                              @"taskId": taskId,
+                                                                              @"chunk": [partBuffer base64EncodedStringWithOptions:0],
+                                                                              }];
             }
 
             partBuffer = [[NSMutableData alloc] init];
@@ -257,19 +255,15 @@ typedef NS_ENUM(NSUInteger, ResponseFormat) {
                 [cookieStore setCookies:cookies forURL:response.URL mainDocumentURL:nil];
             }
         }
-
-        [self.bridge.eventDispatcher
-         sendDeviceEventWithName: EVENT_STATE_CHANGE
-         body:@{
-                @"taskId": taskId,
-                @"state": @"2",
-                @"headers": headers,
-                @"redirects": redirects,
-                @"respType" : respType,
-                @"timeout" : @NO,
-                @"status": [NSNumber numberWithInteger:statusCode]
-                }
-         ];
+        [RNFetchBlobEventManager dispatchEvent:EVENT_STATE_CHANGE body:@{
+                                                                       @"taskId": taskId,
+                                                                       @"state": @"2",
+                                                                       @"headers": headers,
+                                                                       @"redirects": redirects,
+                                                                       @"respType" : respType,
+                                                                       @"timeout" : @NO,
+                                                                       @"status": [NSNumber numberWithInteger:statusCode]
+                                                                       }];
     } else {
         NSLog(@"oops");
     }
@@ -346,15 +340,12 @@ typedef NS_ENUM(NSUInteger, ResponseFormat) {
     NSNumber * now =[NSNumber numberWithFloat:((float)receivedBytes/(float)expectedBytes)];
 
     if ([self.progressConfig shouldReport:now]) {
-        [self.bridge.eventDispatcher
-         sendDeviceEventWithName:EVENT_PROGRESS
-         body:@{
-                @"taskId": taskId,
-                @"written": [NSString stringWithFormat:@"%lld", (long long) receivedBytes],
-                @"total": [NSString stringWithFormat:@"%lld", (long long) expectedBytes],
-                @"chunk": chunkString
-                }
-         ];
+        [RNFetchBlobEventManager dispatchEvent:EVENT_PROGRESS body:@{
+                                                                   @"taskId": taskId,
+                                                                   @"written": [NSString stringWithFormat:@"%lld", (long long) receivedBytes],
+                                                                   @"total": [NSString stringWithFormat:@"%lld", (long long) expectedBytes],
+                                                                   @"chunk": chunkString
+                                                                   }];
     }
 }
 
@@ -435,16 +426,13 @@ typedef NS_ENUM(NSUInteger, ResponseFormat) {
     }
 
     NSNumber * now = [NSNumber numberWithFloat:((float)totalBytesWritten/(float)totalBytesExpectedToWrite)];
-
     if ([self.uploadProgressConfig shouldReport:now]) {
-        [self.bridge.eventDispatcher
-         sendDeviceEventWithName:EVENT_PROGRESS_UPLOAD
-         body:@{
-                @"taskId": taskId,
-                @"written": [NSString stringWithFormat:@"%ld", (long) totalBytesWritten],
-                @"total": [NSString stringWithFormat:@"%ld", (long) totalBytesExpectedToWrite]
-                }
-         ];
+        [RNFetchBlobEventManager dispatchEvent:EVENT_PROGRESS_UPLOAD body:@{
+                                                                          @"taskId": taskId,
+                                                                          @"written": [NSString stringWithFormat:@"%ld", (long) totalBytesWritten],
+                                                                          @"total": [NSString stringWithFormat:@"%ld", (long) totalBytesExpectedToWrite]
+                                                                          }];
+        NSLog(@"Progress: %ld %ld",(long) totalBytesWritten,(long) totalBytesExpectedToWrite);
     }
 }
 

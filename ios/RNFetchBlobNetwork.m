@@ -26,6 +26,8 @@
 #import "RCTBridge.h"
 #endif
 
+#import "RNFetchBlobEventManager.h"
+
 ////////////////////////////////////////
 //
 //  HTTP request handler
@@ -166,9 +168,8 @@ static void initialize_tables() {
         
         while ((key = [emu nextObject]))
         {
-            RCTBridge * bridge = [RNFetchBlob getRCTBridge];
             id args = @{ @"taskId": key };
-            [bridge.eventDispatcher sendDeviceEventWithName:EVENT_EXPIRE body:args];
+            [RNFetchBlobEventManager dispatchEvent:EVENT_EXPIRE body:args];
             
         }
         

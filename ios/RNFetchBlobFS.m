@@ -11,6 +11,7 @@
 #import "RNFetchBlobFS.h"
 #import "RNFetchBlobConst.h"
 #import "IOS7Polyfill.h"
+#import "RNFetchBlobEventManager.h"
 @import AssetsLibrary;
 
 #import <CommonCrypto/CommonDigest.h>
@@ -158,6 +159,7 @@ NSMutableDictionary *fileStreams = nil;
         __block int chunkSize = bufferSize;
         // allocate buffer in heap instead of stack
         uint8_t * buffer;
+        [RNFetchBlobEventManager addSupportedEvent:streamId];
         @try
         {
             buffer = (uint8_t *) malloc(bufferSize);
@@ -167,7 +169,8 @@ NSMutableDictionary *fileStreams = nil;
                 {
                     NSString * message = [NSString stringWithFormat:@"File does not exist at path %@", path];
                     NSDictionary * payload = @{ @"event": FS_EVENT_ERROR, @"code": @"ENOENT", @"detail": message };
-                    [event sendDeviceEventWithName:streamId body:payload];
+                    
+                    [RNFetchBlobEventManager dispatchEvent:streamId body:payload];
                     free(buffer);
                     return ;
                 }
@@ -200,7 +203,7 @@ NSMutableDictionary *fileStreams = nil;
             else
             {
                 NSDictionary * payload = @{ @"event": FS_EVENT_ERROR, @"code": @"EINVAL", @"detail": @"Unable to resolve URI" };
-                [event sendDeviceEventWithName:streamId body:payload];
+                [RNFetchBlobEventManager dispatchEvent:streamId body:payload];
             }
             // release buffer
             if(buffer != nil)
@@ -210,14 +213,14 @@ NSMutableDictionary *fileStreams = nil;
         @catch (NSError * err)
         {
             NSDictionary * payload = @{ @"event": FS_EVENT_ERROR, @"code": @"EUNSPECIFIED", @"detail": [err description] };
-            [event sendDeviceEventWithName:streamId body:payload];
+            [RNFetchBlobEventManager dispatchEvent:streamId body:payload];
         }
         @finally
         {
             NSDictionary * payload = @{ @"event": FS_EVENT_END, @"detail": @"" };
-            [event sendDeviceEventWithName:streamId body:payload];
+            [RNFetchBlobEventManager dispatchEvent:streamId body:payload];
         }
-
+        [RNFetchBlobEventManager removeSupportedEvent:streamId];
     }];
 
 
@@ -226,21 +229,22 @@ NSMutableDictionary *fileStreams = nil;
 // send read stream chunks via native event emitter
 + (void) emitDataChunks:(NSData *)data encoding:(NSString *) encoding streamId:(NSString *)streamId event:(RCTEventDispatcher *)event
 {
+    [RNFetchBlobEventManager addSupportedEvent:streamId];
     @try
     {
-        NSString * encodedChunk = @"";
         if([[encoding lowercaseString] isEqualToString:@"utf8"])
         {
             NSDictionary * payload = @{
                                        @"event": FS_EVENT_DATA,
                                        @"detail" : [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]
                                        };
-            [event sendDeviceEventWithName:streamId body:payload];
+            
+            [RNFetchBlobEventManager dispatchEvent:streamId body:payload];
         }
         else if ([[encoding lowercaseString] isEqualToString:@"base64"])
         {
             NSDictionary * payload = @{ @"event": FS_EVENT_DATA,  @"detail" : [data base64EncodedStringWithOptions:0] };
-            [event sendDeviceEventWithName:streamId body:payload];
+            [RNFetchBlobEventManager dispatchEvent:streamId body:payload];
         }
         else if([[encoding lowercaseString] isEqualToString:@"ascii"])
         {
@@ -258,26 +262,23 @@ NSMutableDictionary *fileStreams = nil;
             }
 
             NSDictionary * payload = @{ @"event": FS_EVENT_DATA,  @"detail" : asciiArray };
-            [event sendDeviceEventWithName:streamId body:payload];
+            [RNFetchBlobEventManager dispatchEvent:streamId body:payload];
         }
 
     }
     @catch (NSException * ex)
     {
         NSString * message = [NSString stringWithFormat:@"Failed to convert data to '%@' encoded string, this might due to the source data is not able to convert using this encoding. source = %@", encoding, [ex description]];
-        [event
-         sendDeviceEventWithName:streamId
-         body:@{
-                @"event" : MSG_EVENT_ERROR,
-                @"detail" : message
-                }];
-        [event
-         sendDeviceEventWithName:MSG_EVENT
-         body:@{
-                @"event" : MSG_EVENT_WARN,
-                @"detail" : message
-                }];
+        [RNFetchBlobEventManager dispatchEvent:streamId body:@{
+                                                             @"event" : MSG_EVENT_ERROR,
+                                                             @"detail" : message
+                                                             }];
+        [RNFetchBlobEventManager dispatchEvent:MSG_EVENT body:@{
+                                                             @"event" : MSG_EVENT_WARN,
+                                                             @"detail" : message
+                                                             }];
     }
+    [RNFetchBlobEventManager removeSupportedEvent:streamId];
 }
 
 # pragma write file from file
