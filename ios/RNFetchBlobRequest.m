@@ -340,12 +340,17 @@ typedef NS_ENUM(NSUInteger, ResponseFormat) {
     NSNumber * now =[NSNumber numberWithFloat:((float)receivedBytes/(float)expectedBytes)];
 
     if ([self.progressConfig shouldReport:now]) {
-        [RNFetchBlobEventManager dispatchEvent:EVENT_PROGRESS body:@{
-                                                                   @"taskId": taskId,
-                                                                   @"written": [NSString stringWithFormat:@"%lld", (long long) receivedBytes],
-                                                                   @"total": [NSString stringWithFormat:@"%lld", (long long) expectedBytes],
-                                                                   @"chunk": chunkString
-                                                                   }];
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            [RNFetchBlobEventManager dispatchEvent:EVENT_PROGRESS body:@{
+                                                                         @"taskId": self.taskId,
+                                                                         @"written": [NSString stringWithFormat:@"%lld", (long long) self.receivedBytes],
+                                                                         @"total": [NSString stringWithFormat:@"%lld", (long long) self.expectedBytes],
+                                                                         @"chunk": chunkString
+                                                                         }];
+        });
+        
+        NSLog(@"Download Progress: %ld %ld",(long) receivedBytes,(long) expectedBytes);
+        
     }
 }
 
@@ -427,12 +432,15 @@ typedef NS_ENUM(NSUInteger, ResponseFormat) {
 
     NSNumber * now = [NSNumber numberWithFloat:((float)totalBytesWritten/(float)totalBytesExpectedToWrite)];
     if ([self.uploadProgressConfig shouldReport:now]) {
-        [RNFetchBlobEventManager dispatchEvent:EVENT_PROGRESS_UPLOAD body:@{
-                                                                          @"taskId": taskId,
-                                                                          @"written": [NSString stringWithFormat:@"%ld", (long) totalBytesWritten],
-                                                                          @"total": [NSString stringWithFormat:@"%ld", (long) totalBytesExpectedToWrite]
-                                                                          }];
-        NSLog(@"Progress: %ld %ld",(long) totalBytesWritten,(long) totalBytesExpectedToWrite);
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            [RNFetchBlobEventManager dispatchEvent:EVENT_PROGRESS_UPLOAD body:@{
+                                                                                @"taskId": self.taskId,
+                                                                                @"written": [NSString stringWithFormat:@"%ld", (long) totalBytesWritten],
+                                                                                @"total": [NSString stringWithFormat:@"%ld", (long) totalBytesExpectedToWrite]
+                                                                                }];
+        });
+        
+        NSLog(@"Upload Progress: %ld %ld",(long) totalBytesWritten,(long) totalBytesExpectedToWrite);
     }
 }
 

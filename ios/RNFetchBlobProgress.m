@@ -41,13 +41,13 @@
     NSTimeInterval timeStamp = [[NSDate date] timeIntervalSince1970];
     // NSTimeInterval is defined as double
     NSNumber *timeStampObj = [NSNumber numberWithDouble: timeStamp];
-
+    
     if(lastTick == 0){
         tick++;
         lastTick = [timeStampObj doubleValue];
         return YES;
     }
-
+    
     BOOL shouldReport = tick*[self.interval doubleValue] + lastTick < timeStamp;
     if(shouldReport)
     {
